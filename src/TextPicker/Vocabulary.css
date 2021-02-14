@@ -1,0 +1,8 @@
+.hebrew {
+	font-family: 'SBL Hebrew';
+	font-size: 14pt !important;
+}
+
+.hebrew .itasks-textview {
+	font-size: 14pt !important;
+}

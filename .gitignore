@@ -1,0 +1,10 @@
+*.abc
+*.bc
+*.exe
+*.o
+*.pbc
+*.prj
+*.tcl
+
+*-data/
+*-www/

@@ -1,0 +1,3 @@
+[submodule "src/text-fabric"]
+	path = src/text-fabric
+	url = https://gitlab.com/camilstaps/text-fabric
