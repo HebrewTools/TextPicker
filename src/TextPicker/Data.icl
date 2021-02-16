@@ -18,6 +18,7 @@ FEATURES :==
 	, "chapter"
 	, "gloss"
 	, "lex"
+	, "pargr"
 	, "verse"
 	, "voc_lex_utf8"
 	]

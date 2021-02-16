@@ -36,9 +36,17 @@ tryToLoadData =
 		tryToLoadData
 
 :: FindTextSettings =
-	{ number_of_verses  :: !Int
+	{ text_boundaries   :: !TextBoundaries
 	, goal              :: !Goal
 	, number_of_results :: !Int
+	}
+
+:: TextBoundaries
+	= NumberOfVerses !Int
+	| Paragraphs !ParagraphSettings
+
+:: ParagraphSettings =
+	{ minimum_number_of_words :: !Int
 	}
 
 :: Goal =
@@ -59,11 +67,15 @@ tryToLoadData =
 	= Words
 	| Lexemes
 
-derive class iTask FindTextSettings, Goal, Objective, AbsoluteOrRelative, WordsOrLexemes
+derive class iTask FindTextSettings
+derive class iTask TextBoundaries, ParagraphSettings
+derive class iTask Goal, Objective, AbsoluteOrRelative, WordsOrLexemes
 
 defaultFindTextSettings :: FindTextSettings
 defaultFindTextSettings =
-	{ number_of_verses  = 1
+	{ text_boundaries   = Paragraphs
+		{ minimum_number_of_words = 50
+		}
 	, goal              =
 		{ objective            = MaximizeKnownness
 		, absolute_or_relative = CountRatio
@@ -102,11 +114,10 @@ findTexts =
 
 findSuitableTexts :: !('Data.Set'.Set String) !FindTextSettings !DataSet -> Task [String]
 findSuitableTexts vocabulary settings data =
-	case get_node_feature_ids ["book", "chapter", "verse", "lex"] data of
-		?Just [book,chapter,verse,lex:_] ->
+	case get_node_feature_ids ["book", "chapter", "verse", "pargr", "lex"] data of
+		?Just [book,chapter,verse,pargr,lex:_] ->
 			let
-				all_verses = [v \\ v <|- filter_nodes (isOfType "verse") data]
-				all_texts = makeTexts book chapter verse all_verses
+				all_texts = textCandidates book chapter verse pargr data
 				scored_texts = sortBy ((<) `on` snd) (map (appSnd (score lex)) all_texts)
 				best_verses = map toReference $ take settings.number_of_results $ avoidOverlap $ map fst scored_texts
 			in
@@ -114,31 +125,67 @@ findSuitableTexts vocabulary settings data =
 		_ ->
 			throw "Text-Fabric data did not contain the required features"
 where
-	makeTexts :: !FeatureId !FeatureId !FeatureId ![Node] -> [((String,Int,Int,Int),[Node])]
-	makeTexts _ _ _ [] = []
-	makeTexts book chapter verse [this:rest]
-		| length theseVerses == settings.number_of_verses
-			= [thisText:makeTexts book chapter verse rest]
-			= makeTexts book chapter verse rest
+	textCandidates :: !FeatureId !FeatureId !FeatureId !FeatureId !DataSet -> [((String,Int,Int,Int),[Node])]
+	textCandidates book chapter verse pargr data = case settings.text_boundaries of
+		NumberOfVerses n ->
+			collectVerses n [v \\ v <|- filter_nodes (isOfType "verse") data]
+		Paragraphs settings ->
+			collectParagraphs settings
+				[ (ca, split "." (get_node_feature pargr ca))
+				\\ ca <|- filter_nodes (isOfType "clause_atom") data
+				]
 	where
-		thisBook = get_node_feature book this
-		thisChapter = get_node_feature chapter this
-
-		thisText =
-			(
-				( thisBook
-				, toInt thisChapter
-				, toInt (get_node_feature verse this)
-				, toInt (get_node_feature verse (last theseVerses))
-				)
-			, theseVerses
-			)
-
-		theseVerses = take settings.number_of_verses [this:takeWhile partOfThisText rest]
+		collectVerses _ [] = []
+		collectVerses number_of_verses [this:rest]
+			| length theseVerses == number_of_verses
+				= [thisText:collectVerses number_of_verses rest]
+				= collectVerses number_of_verses rest
 		where
-			partOfThisText n =
-				get_node_feature chapter n == thisChapter &&
-				get_node_feature book n == thisBook
+			thisBook = get_node_feature book this
+			thisChapter = get_node_feature chapter this
+
+			thisText =
+				(
+					( thisBook
+					, toInt thisChapter
+					, toInt (get_node_feature verse this)
+					, toInt (get_node_feature verse (last theseVerses))
+					)
+				, theseVerses
+				)
+
+			theseVerses = take number_of_verses [this:takeWhile partOfThisText rest]
+			where
+				partOfThisText n =
+					get_node_feature chapter n == thisChapter &&
+					get_node_feature book n == thisBook
+
+		collectParagraphs _ [] = []
+		collectParagraphs settings [(node,p):rest]
+			| length theseWords >= settings.minimum_number_of_words
+				= [thisText:collectParagraphs settings rest`]
+				= collectParagraphs settings rest`
+		where
+			(restOfParagraph,rest`) = span (sameParagraph p o snd) rest
+			where
+				sameParagraph [x:_] [y:_] = x == y
+
+			theseNodes = [node:map fst restOfParagraph]
+			theseWords = [w \\ ca <- theseNodes, w <|- get_child_node_refs_with (isOfType "word") ca data]
+
+			firstVerse = getVerse (Hd (get_child_node_refs_with (isOfType "word") node data))
+			lastVerse = getVerse (Last (get_child_node_refs_with (isOfType "word") (last theseNodes) data))
+			thisText =
+				(
+					( get_node_feature book firstVerse
+					, toInt (get_node_feature chapter firstVerse)
+					, toInt (get_node_feature verse firstVerse)
+					, toInt (get_node_feature verse lastVerse)
+					)
+				, theseNodes
+				)
+
+			getVerse node = Hd (get_ancestor_nodes_with (isOfType "verse") node data)
 
 	score lex verses = case settings.goal.absolute_or_relative of
 		CountAbsoluteItems ->
