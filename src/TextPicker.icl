@@ -107,8 +107,14 @@ findTexts =
 		@ filter (flip isMember chosenVocabularyLists o fst)
 		@ concatMap snd @ 'Data.Set'.fromList >>- \chosenVocabulary ->
 	loadDataSet >>-
-	findSuitableTexts chosenVocabulary settings >>-
-	viewInformation [] >>*
+	findSuitableTexts chosenVocabulary settings >>- \texts ->
+	(ArrangeSplit Horizontal False @>>
+		(
+			(Title "Settings" @>> viewInformation [] settings)
+		-&&-
+			(Title "Results" @>> viewInformation [] texts)
+		)
+	) >>*
 	[ OnAction (Action "Back") $ always $ return ()
 	]
 
