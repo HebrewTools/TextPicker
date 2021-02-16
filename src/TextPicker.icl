@@ -23,7 +23,7 @@ Start w = doTasks main w
 main =
 	tryToLoadData >-|
 	allTasks
-		[ forever findTexts <<@ Title "Find texts"
+		[ findTexts <<@ Title "Find texts"
 		, manageVocabulary <<@ Title "Manage vocabulary"
 		]
 	<<@ ArrangeWithTabs False
@@ -94,29 +94,30 @@ findTexts =
 	// prevent exceptions when the type of FindTextSettings has changed:
 	catchAll (get findTextSettings) (\_ -> set defaultFindTextSettings findTextSettings) >-|
 	// actual tasks:
-	(ArrangeSplit Horizontal False @>>
-		(
-			(Hint "Find texts with the following vocabulary:" @>>
-				editSharedMultipleChoiceWithSharedAs [ChooseFromCheckGroup fst] vocabularyLists fst selectedVocabularyLists)
-		-&&-
-			(Hint "Miscellaneous settings:" @>>
-				updateSharedInformation [] findTextSettings)
+	(ArrangeWithSideBar 1 BottomSide True @>> (
+		(Title "Settings" @>> ArrangeSplit Horizontal False @>>
+			(
+				(Hint "Find texts with the following vocabulary:" @>>
+					editSharedMultipleChoiceWithSharedAs [ChooseFromCheckGroup fst] vocabularyLists fst selectedVocabularyLists)
+			-&&-
+				(Hint "Miscellaneous settings:" @>>
+					updateSharedInformation [] findTextSettings)
+			)
 		)
-	) >>! \(chosenVocabularyLists, settings) ->
-	get vocabularyLists
-		@ filter (flip isMember chosenVocabularyLists o fst)
-		@ concatMap snd @ 'Data.Set'.fromList >>- \chosenVocabulary ->
-	loadDataSet >>-
-	findSuitableTexts chosenVocabulary settings >>- \texts ->
-	(ArrangeSplit Horizontal False @>>
-		(
-			(Title "Settings" @>> viewInformation [] settings)
-		-&&-
-			(Title "Results" @>> viewInformation [] texts)
-		)
-	) >>*
-	[ OnAction (Action "Back") $ always $ return ()
-	]
+	-&&-
+		forever (ScrollContent @>> (
+			get selectedVocabularyLists >>- \selection ->
+			get findTextSettings >>- \settings ->
+			get vocabularyLists
+				@ filter (flip isMember selection o fst)
+				@ concatMap snd @ 'Data.Set'.fromList >>- \chosenVocabulary ->
+			loadDataSet >>-
+			findSuitableTexts chosenVocabulary settings >>-
+			viewInformation [] >>*
+			[ OnAction (Action "Search again") $ always $ return ()
+			]
+		))
+	)) @! ()
 
 findSuitableTexts :: !('Data.Set'.Set String) !FindTextSettings !DataSet -> Task [String]
 findSuitableTexts vocabulary settings data =
