@@ -9,6 +9,7 @@ import qualified Data.Set
 import Data.Set.GenJSON
 import Data.Tuple
 import Text
+import Text.HTML
 
 import iTasks
 
@@ -17,6 +18,8 @@ import TextPicker.Vocabulary
 
 import TextFabric
 import TextFabric.Filters
+
+import Bible
 
 Start w = doTasks main w
 
@@ -71,12 +74,59 @@ derive class iTask FindTextSettings
 derive class iTask TextBoundaries, ParagraphSettings
 derive class iTask Goal, Objective, AbsoluteOrRelative, WordsOrLexemes
 
+:: TextResult =
+	{ start   :: !Reference
+	, end     :: !Reference
+	}
+
+derive class iTask \ gEditor TextResult
+derive class iTask Reference, Book
+
+gEditor{|TextResult|} EditValue = gEditor EditValue
+where
+	derive gEditor TextResult
+gEditor{|TextResult|} ViewValue =
+	mapEditorRead pretty ((mapEditorWrite \_ -> ?None) htmlView)
+where
+	pretty {start,end} = ATag
+		[ TargetAttr "_blank"
+		, HrefAttr link
+		]
+		[ Html (replaceSubString "-" "&ndash;" reference)
+		]
+	where
+		link = concat
+			[ "https://parabible.com/"
+			, replaceSubString " " "-" (englishName start.book)
+			, "/"
+			, toString start.chapter
+			]
+
+		reference = concat
+			[ englishName start.book, " "
+			, toString start.chapter, ":"
+			, toString start.verse
+			: if (start == end)
+				[]
+				[ "-"
+				: if (start.book <> end.book)
+					end_ref
+					(if (start.chapter <> end.chapter)
+						end_chapter_and_verse
+						end_verse)
+				]
+			]
+
+		end_ref = [englishName end.book," ":end_chapter_and_verse]
+		end_chapter_and_verse = [toString end.chapter,":":end_verse]
+		end_verse = [toString end.verse]
+
 defaultFindTextSettings :: FindTextSettings
 defaultFindTextSettings =
-	{ text_boundaries   = Paragraphs
+	{ text_boundaries = Paragraphs
 		{ minimum_number_of_words = 50
 		}
-	, goal              =
+	, goal =
 		{ objective            = MaximizeKnownness
 		, absolute_or_relative = CountRatio
 		, words_or_lexemes     = Words
@@ -119,20 +169,20 @@ findTexts =
 		))
 	)) @! ()
 
-findSuitableTexts :: !('Data.Set'.Set String) !FindTextSettings !DataSet -> Task [String]
+findSuitableTexts :: !('Data.Set'.Set String) !FindTextSettings !DataSet -> Task [TextResult]
 findSuitableTexts vocabulary settings data =
 	case get_node_feature_ids ["book", "chapter", "verse", "pargr", "lex"] data of
 		?Just [book,chapter,verse,pargr,lex:_] ->
 			let
 				all_texts = textCandidates book chapter verse pargr data
 				scored_texts = sortBy ((<) `on` snd) (map (appSnd (score lex)) all_texts)
-				best_verses = map toReference $ take settings.number_of_results $ avoidOverlap $ map fst scored_texts
+				best_texts = take settings.number_of_results $ avoidOverlap $ map fst scored_texts
 			in
-			return best_verses
+			return best_texts
 		_ ->
 			throw "Text-Fabric data did not contain the required features"
 where
-	textCandidates :: !FeatureId !FeatureId !FeatureId !FeatureId !DataSet -> [((String,Int,Int,Int),[Node])]
+	textCandidates :: !FeatureId !FeatureId !FeatureId !FeatureId !DataSet -> [(TextResult,[Node])]
 	textCandidates book chapter verse pargr data = case settings.text_boundaries of
 		NumberOfVerses n ->
 			collectVerses n [v \\ v <|- filter_nodes (isOfType "verse") data]
@@ -151,13 +201,12 @@ where
 			thisBook = get_node_feature book this
 			thisChapter = get_node_feature chapter this
 
+			startRef = {book=fromString thisBook, chapter=toInt thisChapter, verse=toInt (get_node_feature verse this)}
 			thisText =
 				(
-					( thisBook
-					, toInt thisChapter
-					, toInt (get_node_feature verse this)
-					, toInt (get_node_feature verse (last theseVerses))
-					)
+					{ start = startRef
+					, end   = {startRef & verse=toInt (get_node_feature verse (last theseVerses))}
+					}
 				, theseVerses
 				)
 
@@ -182,13 +231,16 @@ where
 
 			firstVerse = getVerse (Hd (get_child_node_refs_with (isOfType "word") node data))
 			lastVerse = getVerse (Last (get_child_node_refs_with (isOfType "word") (last theseNodes) data))
+			startRef =
+				{ book    = fromString (get_node_feature book firstVerse)
+				, chapter = toInt (get_node_feature chapter firstVerse)
+				, verse   = toInt (get_node_feature verse firstVerse)
+				}
 			thisText =
 				(
-					( get_node_feature book firstVerse
-					, toInt (get_node_feature chapter firstVerse)
-					, toInt (get_node_feature verse firstVerse)
-					, toInt (get_node_feature verse lastVerse)
-					)
+					{ start = startRef
+					, end   = {startRef & verse=toInt (get_node_feature verse lastVerse)}
+					}
 				, theseNodes
 				)
 
@@ -212,19 +264,12 @@ where
 		(known_items,unknown_items) = partition (flip 'Data.Set'.member vocabulary) items
 
 	avoidOverlap [] = []
-	avoidOverlap [this=:(book,chapter,start,end):rest] = [this:avoidOverlap (filter noOverlap rest)]
+	avoidOverlap [this=:{start,end}:rest] = [this:avoidOverlap (filter noOverlap rest)]
 	where
-		noOverlap (book2,chapter2,start2,end2) =
-			book2 <> book ||
-			chapter2 <> chapter ||
-			end2 < start ||
-			end < start2
-
-	toReference (book,chapter,start,end) = concat
-		[ replaceSubString "_" " " book
-		, " "
-		, toString chapter
-		, ":"
-		, toString start
-		: if (start == end) [] ["–", toString end]
-		]
+		noOverlap {start=start2,end=end2} =
+			(start.book <> end2.book ||
+				(end2.chapter < start.chapter ||
+					(end2.chapter == start.chapter && end2.verse < start.verse))) &&
+			(start2.book <> end.book ||
+				(start2.chapter > end.chapter ||
+					(start2.chapter == end.chapter && start2.verse > end.verse)))

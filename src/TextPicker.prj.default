@@ -49,6 +49,7 @@ Global
 		PrelinkByteCode:	True
 	Paths
 		Path:	{Project}
+		Path:	{Project}*bible-references
 		Path:	{Project}*text-fabric
 	Precompile:	
 	Postlink:	
