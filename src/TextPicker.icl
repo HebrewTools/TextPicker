@@ -79,6 +79,9 @@ findTextSettings :: SimpleSDSLens FindTextSettings
 findTextSettings =: sdsFocus "findTextSettings.json" $ jsonFileStore "TextPicker" False False (?Just defaultFindTextSettings)
 
 findTexts =
+	// prevent exceptions when the type of FindTextSettings has changed:
+	catchAll (get findTextSettings) (\_ -> set defaultFindTextSettings findTextSettings) >-|
+	// actual tasks:
 	(ArrangeSplit Horizontal False @>>
 		(
 			(Hint "Find texts with the following vocabulary:" @>>
