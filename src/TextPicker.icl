@@ -37,21 +37,39 @@ tryToLoadData =
 
 :: FindTextSettings =
 	{ number_of_verses  :: !Int
-	, goal              :: !MinimizationTarget
+	, goal              :: !Goal
 	, number_of_results :: !Int
 	}
 
-:: MinimizationTarget
-	= MinimizeNumberOfUnknownWords
-	| MinimizeRatioOfUnknownWords
+:: Goal =
+	{ objective            :: !Objective
+	, absolute_or_relative :: !AbsoluteOrRelative
+	, words_or_lexemes     :: !WordsOrLexemes
+	}
 
-derive class iTask FindTextSettings, MinimizationTarget
+:: Objective
+	= MinimizeUnknownness
+	| MaximizeKnownness
+
+:: AbsoluteOrRelative
+	= CountAbsoluteItems
+	| CountRatio
+
+:: WordsOrLexemes
+	= Words
+	| Lexemes
+
+derive class iTask FindTextSettings, Goal, Objective, AbsoluteOrRelative, WordsOrLexemes
 
 defaultFindTextSettings :: FindTextSettings
 defaultFindTextSettings =
 	{ number_of_verses  = 1
-	, goal              = MinimizeNumberOfUnknownWords
-	, number_of_results = 100
+	, goal              =
+		{ objective            = MaximizeKnownness
+		, absolute_or_relative = CountRatio
+		, words_or_lexemes     = Words
+		}
+	, number_of_results = 25
 	}
 
 selectedVocabularyLists :: SimpleSDSLens [String]
@@ -119,15 +137,22 @@ where
 				get_node_feature chapter n == thisChapter &&
 				get_node_feature book n == thisBook
 
-	score lex verses = case settings.goal of
-		MinimizeNumberOfUnknownWords ->
-			toReal n_unknown
-		MinimizeRatioOfUnknownWords ->
-			toReal n_unknown / toReal (Length words)
+	score lex verses = case settings.goal.absolute_or_relative of
+		CountAbsoluteItems ->
+			case settings.goal.objective of
+				MinimizeUnknownness ->
+					toReal (length unknown_items)
+				MaximizeKnownness ->
+					toReal (0 - length known_items)
+		CountRatio ->
+			toReal (length unknown_items) / toReal (length items)
 	where
 		words = concatMap (\v -> [c \\ c <|- get_child_nodes_with (isOfType "word") v data]) verses
-		word_lexemes = [get_node_feature lex w \\ w <- words]
-		n_unknown = length $ removeDup $ filter (not o flip 'Data.Set'.member vocabulary) word_lexemes
+		lexemes = [get_node_feature lex w \\ w <- words]
+		items = case settings.goal.words_or_lexemes of
+			Words   -> lexemes
+			Lexemes -> removeDup lexemes
+		(known_items,unknown_items) = partition (flip 'Data.Set'.member vocabulary) items
 
 	avoidOverlap [] = []
 	avoidOverlap [this=:(book,chapter,start,end):rest] = [this:avoidOverlap (filter noOverlap rest)]
