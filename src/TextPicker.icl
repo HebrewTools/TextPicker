@@ -98,8 +98,8 @@ where
 		link = concat
 			[ "https://parabible.com/"
 			, replaceSubString " " "-" (englishName start.book)
-			, "/"
-			, toString start.chapter
+			, "/", toString start.chapter
+			, "#", toString start.verse
 			]
 
 		reference = concat
