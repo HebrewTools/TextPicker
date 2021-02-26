@@ -21,6 +21,8 @@ FEATURES :==
 	, "pargr"
 	, "verse"
 	, "voc_lex_utf8"
+	, "vs"
+	, "vt"
 	]
 
 derive class iTask LexemeInformation

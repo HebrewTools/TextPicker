@@ -38,6 +38,66 @@ tryToLoadData =
 		updateSharedInformation [] dataPath >!|
 		tryToLoadData
 
+:: VerbSettings =
+	{ stems  :: !Stems
+	, tenses :: !Tenses
+	}
+
+:: Stems =
+	{ qal     :: !Bool
+	, nifal   :: !Bool
+	, piel    :: !Bool
+	, pual    :: !Bool
+	, hitpael :: !Bool
+	, hifil   :: !Bool
+	, hofal   :: !Bool
+	, poal    :: !Bool
+	, poel    :: !Bool
+	, hitpoel :: !Bool
+	}
+
+:: Tenses =
+	{ perfect              :: !Bool
+	, imperfect            :: !Bool
+	, wayyiqtol            :: !Bool
+	, imperative           :: !Bool
+	, infinitive_absolute  :: !Bool
+	, infinitive_construct :: !Bool
+	, participle           :: !Bool
+	, participle_passive   :: !Bool
+	}
+
+derive class iTask VerbSettings, Stems, Tenses
+derive gDefault VerbSettings, Stems, Tenses
+
+stems :: !VerbSettings -> 'Data.Set'.Set String
+stems {stems} = 'Data.Set'.unions
+	[ 'Data.Set'.singleton "NA"
+	, if stems.qal     ('Data.Set'.singleton "qal")     'Data.Set'.newSet
+	, if stems.nifal   ('Data.Set'.singleton "nifal")   'Data.Set'.newSet
+	, if stems.piel    ('Data.Set'.singleton "piel")    'Data.Set'.newSet
+	, if stems.pual    ('Data.Set'.singleton "pual")    'Data.Set'.newSet
+	, if stems.hitpael ('Data.Set'.singleton "hitpael") 'Data.Set'.newSet
+	, if stems.hifil   ('Data.Set'.singleton "hifil")   'Data.Set'.newSet
+	, if stems.hofal   ('Data.Set'.singleton "hofal")   'Data.Set'.newSet
+	, if stems.poel    ('Data.Set'.singleton "poel")    'Data.Set'.newSet
+	, if stems.pual    ('Data.Set'.singleton "pual")    'Data.Set'.newSet
+	, if stems.hitpoel ('Data.Set'.singleton "hitpoel") 'Data.Set'.newSet
+	]
+
+tenses :: !VerbSettings -> 'Data.Set'.Set String
+tenses {tenses} = 'Data.Set'.unions
+	[ 'Data.Set'.singleton "NA"
+	, if tenses.perfect              ('Data.Set'.singleton "perfect")              'Data.Set'.newSet
+	, if tenses.imperfect            ('Data.Set'.singleton "imperfect")            'Data.Set'.newSet
+	, if tenses.wayyiqtol            ('Data.Set'.singleton "wayyiqtol")            'Data.Set'.newSet
+	, if tenses.imperative           ('Data.Set'.singleton "imperative")           'Data.Set'.newSet
+	, if tenses.infinitive_absolute  ('Data.Set'.singleton "infinitive_absolute")  'Data.Set'.newSet
+	, if tenses.infinitive_construct ('Data.Set'.singleton "infinitive_construct") 'Data.Set'.newSet
+	, if tenses.participle           ('Data.Set'.singleton "participle")           'Data.Set'.newSet
+	, if tenses.participle_passive   ('Data.Set'.singleton "participle_passive")   'Data.Set'.newSet
+	]
+
 :: FindTextSettings =
 	{ text_boundaries   :: !TextBoundaries
 	, goal              :: !Goal
@@ -55,7 +115,7 @@ tryToLoadData =
 :: Goal =
 	{ objective            :: !Objective
 	, absolute_or_relative :: !AbsoluteOrRelative
-	, words_or_lexemes     :: !WordsOrLexemes
+	, words_or_forms       :: !WordsOrForms
 	}
 
 :: Objective
@@ -66,13 +126,13 @@ tryToLoadData =
 	= CountAbsoluteItems
 	| CountRatio
 
-:: WordsOrLexemes
+:: WordsOrForms
 	= Words
-	| Lexemes
+	| Forms
 
 derive class iTask FindTextSettings
 derive class iTask TextBoundaries, ParagraphSettings
-derive class iTask Goal, Objective, AbsoluteOrRelative, WordsOrLexemes
+derive class iTask Goal, Objective, AbsoluteOrRelative, WordsOrForms
 
 :: TextResult =
 	{ start   :: !Reference
@@ -129,13 +189,16 @@ defaultFindTextSettings =
 	, goal =
 		{ objective            = MaximizeKnownness
 		, absolute_or_relative = CountRatio
-		, words_or_lexemes     = Words
+		, words_or_forms       = Words
 		}
 	, number_of_results = 25
 	}
 
 selectedVocabularyLists :: SimpleSDSLens [String]
 selectedVocabularyLists =: sdsFocus "selectedVocabularyLists.json" $ jsonFileStore "TextPicker" False False (?Just [])
+
+verbSettings :: SimpleSDSLens VerbSettings
+verbSettings =: sdsFocus "verbSettings.json" $ jsonFileStore "TextPicker" False False (?Just defaultValue)
 
 findTextSettings :: SimpleSDSLens FindTextSettings
 findTextSettings =: sdsFocus "findTextSettings.json" $ jsonFileStore "TextPicker" False False (?Just defaultFindTextSettings)
@@ -145,43 +208,53 @@ findTexts =
 	catchAll (get findTextSettings) (\_ -> set defaultFindTextSettings findTextSettings) >-|
 	// actual tasks:
 	(ArrangeWithSideBar 1 BottomSide True @>> (
-		(Title "Settings" @>> ArrangeSplit Horizontal False @>>
-			(
-				(Hint "Find texts with the following vocabulary:" @>>
-					editSharedMultipleChoiceWithSharedAs [ChooseFromCheckGroup fst] vocabularyLists fst selectedVocabularyLists)
-			-&&-
-				(Hint "Miscellaneous settings:" @>>
-					updateSharedInformation [] findTextSettings)
-			)
+		(Title "Settings" @>> ApplyLayout settings_layout @>> allTasks
+			[ Hint "Find texts with the following vocabulary:" @>>
+				editSharedMultipleChoiceWithSharedAs [ChooseFromCheckGroup fst] vocabularyLists fst selectedVocabularyLists @! ()
+			, Hint "Only recognize these verbal forms:" @>>
+				updateSharedInformation [] verbSettings @! ()
+			, Hint "Miscellaneous settings:" @>>
+				updateSharedInformation [] findTextSettings @! ()
+			]
 		)
 	-&&-
 		forever (ScrollContent @>> (
 			get selectedVocabularyLists >>- \selection ->
+			get verbSettings >>- \verb_settings ->
 			get findTextSettings >>- \settings ->
 			get vocabularyLists
 				@ filter (flip isMember selection o fst)
 				@ concatMap snd @ 'Data.Set'.fromList >>- \chosenVocabulary ->
 			loadDataSet >>-
-			findSuitableTexts chosenVocabulary settings >>-
+			findSuitableTexts chosenVocabulary verb_settings settings >>-
 			viewInformation [] >>*
 			[ OnAction (Action "Search again") $ always $ return ()
 			]
 		))
 	)) @! ()
+where
+	settings_layout = sequenceLayouts
+		[ arrangeSplit Horizontal False
+		, layoutSubUIs SelectChildren (setUIAttributes (widthAttr WrapSize))
+		, scrollContent
+		]
 
-findSuitableTexts :: !('Data.Set'.Set String) !FindTextSettings !DataSet -> Task [TextResult]
-findSuitableTexts vocabulary settings data =
-	case get_node_feature_ids ["book", "chapter", "verse", "pargr", "lex"] data of
-		?Just [book,chapter,verse,pargr,lex:_] ->
+findSuitableTexts :: !('Data.Set'.Set String) !VerbSettings !FindTextSettings !DataSet -> Task [TextResult]
+findSuitableTexts vocabulary verb_settings settings data =
+	case get_node_feature_ids ["book", "chapter", "verse", "pargr", "lex", "vs", "vt"] data of
+		?Just [book,chapter,verse,pargr,lex,vs,vt:_] ->
 			let
 				all_texts = textCandidates book chapter verse pargr data
-				scored_texts = sortBy ((<) `on` snd) (map (appSnd (score lex)) all_texts)
+				scored_texts = sortBy ((<) `on` snd) (map (appSnd (score lex vs vt)) all_texts)
 				best_texts = take settings.number_of_results $ avoidOverlap $ map fst scored_texts
 			in
-			return best_texts
+			Hint "Finding suitable texts..." @>> compute (hyperstrict best_texts)
 		_ ->
 			throw "Text-Fabric data did not contain the required features"
 where
+	known_stems = stems verb_settings
+	known_tenses = tenses verb_settings
+
 	textCandidates :: !FeatureId !FeatureId !FeatureId !FeatureId !DataSet -> [(TextResult,[Node])]
 	textCandidates book chapter verse pargr data = case settings.text_boundaries of
 		NumberOfVerses n ->
@@ -246,7 +319,7 @@ where
 
 			getVerse node = Hd (get_ancestor_nodes_with (isOfType "verse") node data)
 
-	score lex verses = case settings.goal.absolute_or_relative of
+	score lex vs vt verses = case settings.goal.absolute_or_relative of
 		CountAbsoluteItems ->
 			case settings.goal.objective of
 				MinimizeUnknownness ->
@@ -257,11 +330,15 @@ where
 			toReal (length unknown_items) / toReal (length items)
 	where
 		words = concatMap (\v -> [c \\ c <|- get_child_nodes_with (isOfType "word") v data]) verses
-		lexemes = [get_node_feature lex w \\ w <- words]
-		items = case settings.goal.words_or_lexemes of
-			Words   -> lexemes
-			Lexemes -> removeDup lexemes
-		(known_items,unknown_items) = partition (flip 'Data.Set'.member vocabulary) items
+		word_features = [(get_node_feature lex w, get_node_feature vs w, get_node_feature vt w) \\ w <- words]
+		items = case settings.goal.words_or_forms of
+			Words -> word_features
+			Forms -> removeDup word_features
+		(known_items,unknown_items) = partition isKnown items
+		isKnown (lexeme, stem, tense) =
+			'Data.Set'.member stem known_stems &&
+			'Data.Set'.member tense known_tenses &&
+			'Data.Set'.member lexeme vocabulary
 
 	avoidOverlap [] = []
 	avoidOverlap [this=:{start,end}:rest] = [this:avoidOverlap (filter noOverlap rest)]
