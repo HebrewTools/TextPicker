@@ -73,35 +73,36 @@ derive gDefault VerbSettings, Stems, Tenses
 stems :: !VerbSettings -> 'Data.Set'.Set String
 stems {stems} = 'Data.Set'.unions
 	[ 'Data.Set'.singleton "NA"
-	, if stems.qal     ('Data.Set'.singleton "qal")     'Data.Set'.newSet
-	, if stems.nifal   ('Data.Set'.singleton "nifal")   'Data.Set'.newSet
-	, if stems.piel    ('Data.Set'.singleton "piel")    'Data.Set'.newSet
-	, if stems.pual    ('Data.Set'.singleton "pual")    'Data.Set'.newSet
-	, if stems.hitpael ('Data.Set'.singleton "hitpael") 'Data.Set'.newSet
-	, if stems.hifil   ('Data.Set'.singleton "hifil")   'Data.Set'.newSet
-	, if stems.hofal   ('Data.Set'.singleton "hofal")   'Data.Set'.newSet
-	, if stems.poel    ('Data.Set'.singleton "poel")    'Data.Set'.newSet
-	, if stems.pual    ('Data.Set'.singleton "pual")    'Data.Set'.newSet
-	, if stems.hitpoel ('Data.Set'.singleton "hitpoel") 'Data.Set'.newSet
+	, if stems.qal     ('Data.Set'.singleton "qal")  'Data.Set'.newSet
+	, if stems.nifal   ('Data.Set'.singleton "nif")  'Data.Set'.newSet
+	, if stems.piel    ('Data.Set'.singleton "piel") 'Data.Set'.newSet
+	, if stems.pual    ('Data.Set'.singleton "pual") 'Data.Set'.newSet
+	, if stems.hitpael ('Data.Set'.singleton "hit")  'Data.Set'.newSet
+	, if stems.hifil   ('Data.Set'.singleton "hif")  'Data.Set'.newSet
+	, if stems.hofal   ('Data.Set'.singleton "hof")  'Data.Set'.newSet
+	, if stems.poal    ('Data.Set'.singleton "poal") 'Data.Set'.newSet
+	, if stems.poel    ('Data.Set'.singleton "poel") 'Data.Set'.newSet
+	, if stems.hitpoel ('Data.Set'.singleton "htpo") 'Data.Set'.newSet
 	]
 
 tenses :: !VerbSettings -> 'Data.Set'.Set String
 tenses {tenses} = 'Data.Set'.unions
 	[ 'Data.Set'.singleton "NA"
-	, if tenses.perfect              ('Data.Set'.singleton "perfect")              'Data.Set'.newSet
-	, if tenses.imperfect            ('Data.Set'.singleton "imperfect")            'Data.Set'.newSet
-	, if tenses.wayyiqtol            ('Data.Set'.singleton "wayyiqtol")            'Data.Set'.newSet
-	, if tenses.imperative           ('Data.Set'.singleton "imperative")           'Data.Set'.newSet
-	, if tenses.infinitive_absolute  ('Data.Set'.singleton "infinitive_absolute")  'Data.Set'.newSet
-	, if tenses.infinitive_construct ('Data.Set'.singleton "infinitive_construct") 'Data.Set'.newSet
-	, if tenses.participle           ('Data.Set'.singleton "participle")           'Data.Set'.newSet
-	, if tenses.participle_passive   ('Data.Set'.singleton "participle_passive")   'Data.Set'.newSet
+	, if tenses.perfect              ('Data.Set'.singleton "perf") 'Data.Set'.newSet
+	, if tenses.imperfect            ('Data.Set'.singleton "impf") 'Data.Set'.newSet
+	, if tenses.wayyiqtol            ('Data.Set'.singleton "wayq") 'Data.Set'.newSet
+	, if tenses.imperative           ('Data.Set'.singleton "impv") 'Data.Set'.newSet
+	, if tenses.infinitive_absolute  ('Data.Set'.singleton "infa") 'Data.Set'.newSet
+	, if tenses.infinitive_construct ('Data.Set'.singleton "infc") 'Data.Set'.newSet
+	, if tenses.participle           ('Data.Set'.singleton "ptca") 'Data.Set'.newSet
+	, if tenses.participle_passive   ('Data.Set'.singleton "ptcp") 'Data.Set'.newSet
 	]
 
 :: FindTextSettings =
 	{ text_boundaries   :: !TextBoundaries
 	, goal              :: !Goal
 	, number_of_results :: !Int
+	, verb_weight       :: !Int
 	}
 
 :: TextBoundaries
@@ -192,6 +193,7 @@ defaultFindTextSettings =
 		, words_or_forms       = Words
 		}
 	, number_of_results = 25
+	, verb_weight = 1
 	}
 
 selectedVocabularyLists :: SimpleSDSLens [String]
@@ -331,10 +333,17 @@ where
 	where
 		words = concatMap (\v -> [c \\ c <|- get_child_nodes_with (isOfType "word") v data]) verses
 		word_features = [(get_node_feature lex w, get_node_feature vs w, get_node_feature vt w) \\ w <- words]
-		items = case settings.goal.words_or_forms of
+		items = repeatVerbs case settings.goal.words_or_forms of
 			Words -> word_features
 			Forms -> removeDup word_features
 		(known_items,unknown_items) = partition isKnown items
+
+		repeatVerbs [] = []
+		repeatVerbs [w=:(_,stem,_):ws]
+			| stem == "NA"
+				= [w:repeatVerbs ws]
+				= repeatn settings.verb_weight w ++ repeatVerbs ws
+
 		isKnown (lexeme, stem, tense) =
 			'Data.Set'.member stem known_stems &&
 			'Data.Set'.member tense known_tenses &&
