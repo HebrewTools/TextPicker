@@ -3,6 +3,7 @@ module TextPicker
 import StdEnv
 import StdOverloadedList
 
+import Control.Applicative
 import Data.Func
 import Data.List => qualified group
 import qualified Data.Set
@@ -67,8 +68,16 @@ tryToLoadData =
 	, participle_passive   :: !Bool
 	}
 
-derive class iTask VerbSettings, Stems, Tenses
+derive class iTask \ gEditor VerbSettings
+derive class iTask Stems, Tenses
 derive gDefault VerbSettings, Stems, Tenses
+
+gEditor{|VerbSettings|} purpose =
+	mapEditorWrite (uncurry (liftA2 \stems tenses -> {stems=stems, tenses=tenses})) $
+	mapEditorRead (\vs -> (vs.stems, vs.tenses)) $
+	container1 $
+	classAttr ["itasks-horizontal"] @>>
+	container2 (gEditor{|*|} purpose) (gEditor{|*|} purpose)
 
 stems :: !VerbSettings -> 'Data.Set'.Set String
 stems {stems} = 'Data.Set'.unions
