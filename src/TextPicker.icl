@@ -108,10 +108,11 @@ tenses {tenses} = 'Data.Set'.unions
 	]
 
 :: FindTextSettings =
-	{ text_boundaries   :: !TextBoundaries
-	, goal              :: !Goal
-	, number_of_results :: !Int
-	, verb_weight       :: !Int
+	{ text_boundaries      :: !TextBoundaries
+	, goal                 :: !Goal
+	, number_of_results    :: !Int
+	, verb_weight          :: !Int
+	, must_include_lexemes :: ![String]
 	}
 
 :: TextBoundaries
@@ -203,6 +204,7 @@ defaultFindTextSettings =
 		}
 	, number_of_results = 25
 	, verb_weight = 1
+	, must_include_lexemes = []
 	}
 
 selectedVocabularyLists :: SimpleSDSLens [String]
@@ -256,7 +258,7 @@ findSuitableTexts vocabulary verb_settings settings data =
 		?Just [book,chapter,verse,pargr,lex,vs,vt:_] ->
 			let
 				all_texts = textCandidates book chapter verse pargr data
-				scored_texts = sortBy ((<) `on` snd) (map (appSnd (score lex vs vt)) all_texts)
+				scored_texts = sortBy ((<) `on` snd) [(t,s) \\ (t,?Just s) <- map (appSnd (score lex vs vt)) all_texts]
 				best_texts = take settings.number_of_results $ avoidOverlap $ map fst scored_texts
 			in
 			Hint "Finding suitable texts..." @>> compute (hyperstrict best_texts)
@@ -330,15 +332,17 @@ where
 
 			getVerse node = Hd (get_ancestor_nodes_with (isOfType "verse") node data)
 
-	score lex vs vt verses = case settings.goal.absolute_or_relative of
-		CountAbsoluteItems ->
-			case settings.goal.objective of
-				MinimizeUnknownness ->
-					toReal (length unknown_items)
-				MaximizeKnownness ->
-					toReal (0 - length known_items)
-		CountRatio ->
-			toReal (length unknown_items) / toReal (length items)
+	score lex vs vt verses
+		| any (not o flip isMember (map fst3 word_features)) settings.must_include_lexemes = ?None
+		| otherwise = ?Just case settings.goal.absolute_or_relative of
+			CountAbsoluteItems ->
+				case settings.goal.objective of
+					MinimizeUnknownness ->
+						toReal (length unknown_items)
+					MaximizeKnownness ->
+						toReal (0 - length known_items)
+			CountRatio ->
+				toReal (length unknown_items) / toReal (length items)
 	where
 		words = concatMap (\v -> [c \\ c <|- get_child_nodes_with (isOfType "word") v data]) verses
 		word_features = [(get_node_feature lex w, get_node_feature vs w, get_node_feature vt w) \\ w <- words]
