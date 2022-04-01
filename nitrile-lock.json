@@ -23,11 +23,13 @@
                          ,{"name":"graph-copy"
                           ,"version":"1.0.1"}
                          ,{"name":"itasks"
-                          ,"version":"0.1.3"}
+                          ,"version":"0.1.4"}
                          ,{"name":"lib-compiler-itasks"
                           ,"version":"2.0.0"}
                          ,{"name":"platform"
                           ,"version":"0.1.12"}
+                         ,{"name":"regex"
+                          ,"version":"1.0.0"}
                          ,{"name":"tcpip"
                           ,"version":"1.0.4"}
                          ,{"name":"text-fabric"

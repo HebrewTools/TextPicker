@@ -151,11 +151,13 @@ findTextsTask editSettings getScoringFunction =
 		(Title "Settings" @>> ApplyLayout settings_layout @>> allTasks editSettings)
 	-&&-
 		forever (ScrollContent @>> (
-			getScoringFunction >>- \score ->
-			get textSelectionSettings >>- \selection_settings ->
-			loadDataSet >>-
-			findSuitableTexts score selection_settings >>-
-			viewInformation [] >>*
+			catchAll (
+				getScoringFunction >>- \score ->
+				get textSelectionSettings >>- \selection_settings ->
+				loadDataSet >>-
+				findSuitableTexts score selection_settings >>-
+				viewInformation [] @! ()
+			) (\e -> Hint "An error occurred:" @>> viewInformation [] e @! ()) >>*
 			[ OnAction (Action "Search again") $ always $ return ()
 			]
 		))

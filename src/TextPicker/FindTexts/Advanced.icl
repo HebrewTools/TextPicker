@@ -3,6 +3,7 @@ implementation module TextPicker.FindTexts.Advanced
 import StdEnv
 
 import Control.Applicative
+import Control.Monad => qualified return, join, forever, sequence
 import Data.Func
 import Data.List => qualified group
 import qualified Data.Set
@@ -12,21 +13,27 @@ import Text.HTML
 
 import iTasks
 
+import Regex
+
 import TextFabric
 
 import TextPicker.Data
 import TextPicker.FindTexts
 import TextPicker.Vocabulary
 
-:: WeighSettings :== [WeighSettingsItem]
+:: EditableWeighSettings :== WeighSettings Feature String
+:: PreparedWeighSettings :== WeighSettings FeatureId CompiledRegex
 
-:: WeighSettingsItem =
-	{ filters :: ![Filter]
+:: WeighSettings feature regex :== [WeighSettingsItem feature regex]
+
+:: WeighSettingsItem feature regex =
+	{ filters :: ![Filter feature regex]
 	, weight  :: !Int
 	}
 
-:: Filter
-	= FeatureEquals !Feature !String
+:: Filter feature regex
+	= FeatureEquals !feature !String
+	| LexemeRegex !regex
 	| FromVocabulary
 
 :: Feature
@@ -56,8 +63,26 @@ derive gDefault WeighSettingsItem, Filter, Feature
 selectedVocabularyLists :: SimpleSDSLens [String]
 selectedVocabularyLists =: sdsFocus "advanced-selectedVocabularyLists.json" $ jsonFileStore "TextPicker" False False (?Just [])
 
-weighSettings :: SimpleSDSLens WeighSettings
-weighSettings =: sdsFocus "basic-weighSettings.json" $ jsonFileStore "TextPicker" False False (?Just defaultValue)
+weighSettings :: SimpleSDSLens EditableWeighSettings
+weighSettings =: sdsFocus "advanced-weighSettings.json" $ jsonFileStore "TextPicker" False False (?Just defaultValue)
+
+prepareWeighSettings :: !DataSet !EditableWeighSettings -> MaybeError String PreparedWeighSettings
+prepareWeighSettings data settings = mapM prepareItem settings
+where
+	prepareItem {filters,weight} =
+		mapM prepare filters >>= \filters ->
+		pure
+			{ filters = filters
+			, weight  = weight
+			}
+
+	prepare (FeatureEquals f val) = case get_node_feature_id (toString f) data of
+		?None -> Error "data did not contain the right features"
+		?Just f -> Ok (FeatureEquals f val)
+	prepare (LexemeRegex rgx) = case compileRegex rgx of
+		Error e -> Error ("failed to compile regex: " +++ e)
+		Ok rgx -> Ok (LexemeRegex rgx)
+	prepare FromVocabulary = Ok FromVocabulary
 
 findTexts :: Task ()
 findTexts = findTextsTask
@@ -86,13 +111,16 @@ findTexts = findTextsTask
 	getScoringFunction
 where
 	getScoringFunction =
-		get selectedVocabularyLists >>- \selection ->
-		get weighSettings >>- \weigh_settings ->
-		get vocabularyLists
-			@ filter (flip isMember selection o fst)
-			@ concatMap snd @ 'Data.Set'.fromList >>- \chosenVocabulary ->
 		loadDataSet >>- \data ->
-		return (score weigh_settings chosenVocabulary data)
+		get weighSettings >>- \weigh_settings -> case prepareWeighSettings data weigh_settings of
+			Error e ->
+				throw e
+			Ok weigh_settings ->
+				get selectedVocabularyLists >>- \selection ->
+				get vocabularyLists
+					@ filter (flip isMember selection o fst)
+					@ concatMap snd @ 'Data.Set'.fromList >>- \chosenVocabulary ->
+				return (score weigh_settings chosenVocabulary data)
 
 	score settings vocabulary data words = toReal (sum (map (scoreWord settings) words)) / toReal (length words)
 	where
@@ -102,9 +130,10 @@ where
 				= weight
 				= scoreWord rest word
 		where
-			matches (FeatureEquals f val)
-				# (?Just f) = get_node_feature_id (toString f) data
-				= get_node_feature f word == val
+			matches (FeatureEquals f val) = get_node_feature f word == val
+			matches (LexemeRegex rgx)
+				# (?Just lex) = get_node_feature_id "lex" data
+				= not (isEmpty (match rgx (get_node_feature lex word)))
 			matches FromVocabulary
 				# (?Just lex) = get_node_feature_id "lex" data
 				= 'Data.Set'.member (get_node_feature lex word) vocabulary
