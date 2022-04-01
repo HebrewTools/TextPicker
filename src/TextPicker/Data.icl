@@ -23,8 +23,17 @@ FEATURES :==
 	, "voc_lex_utf8"
 	, "vs"
 	, "vt"
-	]
 
+	, "gn"
+	, "nu"
+	, "prs_gn"
+	, "prs_nu"
+	, "prs_ps"
+	, "ps"
+	, "st"
+	, "vs"
+	, "vt"
+	]
 derive class iTask LexemeInformation
 
 gEq{|DataSet`|} _ _ _ = abort "gEq DataSet`\n"
