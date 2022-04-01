@@ -139,11 +139,11 @@ where
 			CountAbsoluteItems ->
 				case settings.objective of
 					MinimizeUnknownness ->
-						toReal (length unknown_items)
+						toReal (0 - length unknown_items)
 					MaximizeKnownness ->
-						toReal (0 - length known_items)
+						toReal (length known_items)
 			CountRatio ->
-				toReal (length unknown_items) / toReal (length items)
+				toReal (length known_items) / toReal (length items)
 	where
 		items = repeatVerbs [(get_node_feature lex w, get_node_feature vs w, get_node_feature vt w) \\ w <- words]
 		(known_items,unknown_items) = partition isKnown items
