@@ -4,7 +4,7 @@ from Data.GenEq import generic gEq
 from Text.GenJSON import :: JSONNode, generic JSONEncode, generic JSONDecode
 
 from iTasks.Internal.Generic.Visualization import :: TextFormat, generic gText
-from iTasks.UI.Editor import :: Editor
+from iTasks.UI.Editor import :: Editor, :: EditorReport
 from iTasks.UI.Editor.Generic import :: EditorPurpose, generic gEditor
 from iTasks.SDS.Definition import :: SDSLens, :: SimpleSDSLens
 from iTasks.WF.Definition import :: Task, class iTask

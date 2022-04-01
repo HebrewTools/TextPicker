@@ -3,8 +3,9 @@
 *.exe
 *.o
 *.pbc
-*.prj
 *.tcl
 
 *-data/
 *-www/
+
+nitrile-packages/

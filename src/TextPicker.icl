@@ -157,7 +157,7 @@ gEditor{|TextResult|} EditValue = gEditor EditValue
 where
 	derive gEditor TextResult
 gEditor{|TextResult|} ViewValue =
-	mapEditorRead pretty ((mapEditorWrite \_ -> ?None) htmlView)
+	mapEditorRead pretty ((mapEditorWrite \_ -> EmptyEditor) htmlView)
 where
 	pretty {start,end} = ATag
 		[ TargetAttr "_blank"
