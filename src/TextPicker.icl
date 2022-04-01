@@ -13,6 +13,7 @@ import Text
 import Text.HTML
 
 import iTasks
+import iTasks.Extensions.DateTime
 
 import TextPicker.Data
 import TextPicker.Vocabulary
@@ -80,31 +81,31 @@ gEditor{|VerbSettings|} purpose =
 	container2 (gEditor{|*|} purpose) (gEditor{|*|} purpose)
 
 stems :: !VerbSettings -> 'Data.Set'.Set String
-stems {stems} = 'Data.Set'.unions
-	[ 'Data.Set'.singleton "NA"
-	, if stems.qal     ('Data.Set'.singleton "qal")  'Data.Set'.newSet
-	, if stems.nifal   ('Data.Set'.singleton "nif")  'Data.Set'.newSet
-	, if stems.piel    ('Data.Set'.singleton "piel") 'Data.Set'.newSet
-	, if stems.pual    ('Data.Set'.singleton "pual") 'Data.Set'.newSet
-	, if stems.hitpael ('Data.Set'.singleton "hit")  'Data.Set'.newSet
-	, if stems.hifil   ('Data.Set'.singleton "hif")  'Data.Set'.newSet
-	, if stems.hofal   ('Data.Set'.singleton "hof")  'Data.Set'.newSet
-	, if stems.poal    ('Data.Set'.singleton "poal") 'Data.Set'.newSet
-	, if stems.poel    ('Data.Set'.singleton "poel") 'Data.Set'.newSet
-	, if stems.hitpoel ('Data.Set'.singleton "htpo") 'Data.Set'.newSet
+stems {stems} = 'Data.Set'.fromList $ catMaybes
+	[ ?Just "NA"
+	, if stems.qal     (?Just "qal")  ?None
+	, if stems.nifal   (?Just "nif")  ?None
+	, if stems.piel    (?Just "piel") ?None
+	, if stems.pual    (?Just "pual") ?None
+	, if stems.hitpael (?Just "hit")  ?None
+	, if stems.hifil   (?Just "hif")  ?None
+	, if stems.hofal   (?Just "hof")  ?None
+	, if stems.poal    (?Just "poal") ?None
+	, if stems.poel    (?Just "poel") ?None
+	, if stems.hitpoel (?Just "htpo") ?None
 	]
 
 tenses :: !VerbSettings -> 'Data.Set'.Set String
-tenses {tenses} = 'Data.Set'.unions
-	[ 'Data.Set'.singleton "NA"
-	, if tenses.perfect              ('Data.Set'.singleton "perf") 'Data.Set'.newSet
-	, if tenses.imperfect            ('Data.Set'.singleton "impf") 'Data.Set'.newSet
-	, if tenses.wayyiqtol            ('Data.Set'.singleton "wayq") 'Data.Set'.newSet
-	, if tenses.imperative           ('Data.Set'.singleton "impv") 'Data.Set'.newSet
-	, if tenses.infinitive_absolute  ('Data.Set'.singleton "infa") 'Data.Set'.newSet
-	, if tenses.infinitive_construct ('Data.Set'.singleton "infc") 'Data.Set'.newSet
-	, if tenses.participle           ('Data.Set'.singleton "ptca") 'Data.Set'.newSet
-	, if tenses.participle_passive   ('Data.Set'.singleton "ptcp") 'Data.Set'.newSet
+tenses {tenses} = 'Data.Set'.fromList $ catMaybes
+	[ ?Just "NA"
+	, if tenses.perfect              (?Just "perf") ?None
+	, if tenses.imperfect            (?Just "impf") ?None
+	, if tenses.wayyiqtol            (?Just "wayq") ?None
+	, if tenses.imperative           (?Just "impv") ?None
+	, if tenses.infinitive_absolute  (?Just "infa") ?None
+	, if tenses.infinitive_construct (?Just "infc") ?None
+	, if tenses.participle           (?Just "ptca") ?None
+	, if tenses.participle_passive   (?Just "ptcp") ?None
 	]
 
 :: FindTextSettings =
@@ -261,7 +262,10 @@ findSuitableTexts vocabulary verb_settings settings data =
 				scored_texts = sortBy ((<) `on` snd) [(t,s) \\ (t,?Just s) <- map (appSnd (score lex vs vt)) all_texts]
 				best_texts = take settings.number_of_results $ avoidOverlap $ map fst scored_texts
 			in
-			Hint "Finding suitable texts..." @>> compute (hyperstrict best_texts)
+			Hint "Finding suitable texts..." @>>
+			enterInformation [EnterUsing id (mapEditorWrite ValidEditor loader)] ||-
+			// NB: ugly hack: waitForTimer is needed so that the UILoader is shown
+			(waitForTimer False 1 >-| return (hyperstrict best_texts))
 		_ ->
 			throw "Text-Fabric data did not contain the required features"
 where
