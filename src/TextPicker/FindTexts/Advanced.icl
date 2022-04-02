@@ -5,6 +5,7 @@ import StdEnv
 import Control.Applicative
 import Control.Monad => qualified return, join, forever, sequence
 import Data.Func
+import Data.Functor
 import Data.List => qualified group
 import qualified Data.Set
 import Data.Set.GenJSON
@@ -35,6 +36,7 @@ import TextPicker.Vocabulary
 	= FeatureEquals !feature !String
 	| LexemeRegex !regex
 	| FromVocabulary
+	| NOT !(Filter feature regex)
 
 :: Feature
 	= Lexeme
@@ -83,6 +85,7 @@ where
 		Error e -> Error ("failed to compile regex: " +++ e)
 		Ok rgx -> Ok (LexemeRegex rgx)
 	prepare FromVocabulary = Ok FromVocabulary
+	prepare (NOT f) = NOT <$> prepare f
 
 findTexts :: Task ()
 findTexts = findTextsTask
@@ -137,3 +140,4 @@ where
 			matches FromVocabulary
 				# (?Just lex) = get_node_feature_id "lex" data
 				= 'Data.Set'.member (get_node_feature lex word) vocabulary
+			matches (NOT f) = not (matches f)
