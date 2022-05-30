@@ -134,7 +134,7 @@ where
 		noOverlap {start=start2,end=end2} =
 			(start.book <> end2.book ||
 				(end2.chapter < start.chapter ||
-					(end2.chapter == start.chapter && end2.verse < start.verse))) &&
+					(end2.chapter == start.chapter && end2.verse < start.verse))) ||
 			(start2.book <> end.book ||
 				(start2.chapter > end.chapter ||
 					(start2.chapter == end.chapter && start2.verse > end.verse)))
