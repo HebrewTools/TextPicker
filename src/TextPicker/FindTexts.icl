@@ -43,7 +43,7 @@ findSuitableTexts score settings data =
 				all_texts = textCandidates book chapter verse pargr [lex:morphology_features] data
 				included_texts = if (isEmpty settings.must_include_lexemes)
 					all_texts
-					(filter (\(_,nodes) -> all (\lex` -> any (\n -> /*trace_stdout*/ (get_node_feature lex n) == lex`) nodes) settings.must_include_lexemes) all_texts)
+					(filter (\(_,nodes) -> all (\lex` -> any (\n -> get_node_feature lex n == lex`) nodes) settings.must_include_lexemes) all_texts)
 				scored_texts = sortBy ((>) `on` snd) $ map (appSnd score) included_texts
 				best_texts = take settings.number_of_results $ avoidOverlap $ map fst scored_texts
 			in
