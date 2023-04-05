@@ -125,13 +125,10 @@ where
 					@ concatMap snd @ 'Data.Set'.fromList >>- \chosenVocabulary ->
 				return (score weigh_settings chosenVocabulary data)
 
-	score settings vocabulary data words = toReal (sum (map (scoreWord settings) words)) / toReal (length words)
+	score settings vocabulary data words = toReal (sum (map (scoreWord 0 settings) words)) / toReal (length words)
 	where
-		scoreWord [] _ = 0
-		scoreWord [{filters,weight}:rest] word
-			| all matches filters
-				= weight
-				= scoreWord rest word
+		scoreWord acc [] _ = acc
+		scoreWord acc [{filters,weight}:rest] word = scoreWord (if (all matches filters) (acc+weight) acc) rest word
 		where
 			matches (FeatureEquals f val) = get_node_feature f word == val
 			matches (LexemeRegex rgx)
