@@ -29,6 +29,11 @@ clm_options:
   print_result: false
   print_time: false
 
+watch:
+  exclude:
+    - TextPicker-data/
+    - TextPicker-www/
+
 rules:
   linux and 32bit:
     extra_build:

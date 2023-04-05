@@ -19,11 +19,11 @@
                          ,{"name":"bible-references"
                           ,"version":"1.0.1"}
                          ,{"name":"clean-platform"
-                          ,"version":"0.3.21"}
+                          ,"version":"0.3.23"}
                          ,{"name":"gast"
-                          ,"version":"0.2.2"}
+                          ,"version":"0.2.3"}
                          ,{"name":"graph-copy"
-                          ,"version":"2.0.1"}
+                          ,"version":"2.0.2"}
                          ,{"name":"itasks"
                           ,"version":"0.2.12"}
                          ,{"name":"lib-compiler"
@@ -33,4 +33,4 @@
                          ,{"name":"tcpip"
                           ,"version":"2.0.1"}
                          ,{"name":"text-fabric"
-                          ,"version":"0.1.1"}]}}
+                          ,"version":"0.1.2"}]}}
