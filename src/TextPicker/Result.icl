@@ -44,7 +44,16 @@ where
 			, "?lang=bi"
 			]
 
-gText{|TextResult|} fmt mbResult = gText{|*|} fmt (prettyReference <$> mbResult)
+gText{|TextResult|} fmt mbResult
+	| fmt=:AsSingleLine || fmt=:AsMultiLine =
+		gText{|*|} fmt (prettyReference <$> mbResult) ++
+		[" (":gText{|*|} fmt ((\r -> r.score) <$> mbResult) ++ [")"]]
+	| fmt=:AsHeader =
+		["Score", "Reference", "Text"]
+	| otherwise =
+		gText{|*|} fmt ((\r -> r.score) <$> mbResult) ++
+		gText{|*|} fmt (prettyReference <$> mbResult) ++
+		gText{|*|} fmt ((\r -> r.TextResult.text) <$> mbResult)
 
 prettyReference :: !TextResult -> String
 prettyReference {start,end} = concat

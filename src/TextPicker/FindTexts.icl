@@ -45,8 +45,8 @@ findSuitableTexts score settings data =
 				included_texts = if (isEmpty settings.must_include_lexemes)
 					all_texts
 					(filter (\(_,nodes) -> all (\lex` -> any (\n -> get_node_feature lex n == lex`) nodes) settings.must_include_lexemes) all_texts)
-				scored_texts = sortBy ((>) `on` snd) $ map (appSnd score) included_texts
-				best_texts = take settings.number_of_results $ avoidOverlap $ map fst scored_texts
+				scored_texts = sortBy ((>) `on` \r -> r.score) [{res & score=score nodes} \\ (res,nodes) <- included_texts]
+				best_texts = take settings.number_of_results $ avoidOverlap scored_texts
 			in
 			Hint "Finding suitable texts..." @>>
 			enterInformation [EnterUsing id (mapEditorWrite ValidEditor loader)] ||-
@@ -97,6 +97,7 @@ where
 					{ start = startRef
 					, end   = {startRef & verse=toInt (get_node_feature verse (last theseVerses))}
 					, text  = ?None
+					, score = 0.0
 					}
 				, theseVerses
 				)
@@ -132,6 +133,7 @@ where
 					{ start = startRef
 					, end   = {startRef & verse=toInt (get_node_feature verse lastVerse)}
 					, text  = ?None
+					, score = 0.0
 					}
 				, theseNodes
 				)
@@ -139,7 +141,7 @@ where
 			getVerse node = Hd (get_ancestor_nodes_with (isOfType "verse") node data)
 
 		collectNodes settings type =
-			[ ({start=ref, end=ref, text= ?Just text}, words)
+			[ ({start=ref, end=ref, text= ?Just text, score=0.0}, words)
 			\\ node <|- filter_nodes (isOfType type) data
 			, let
 				node_words = get_child_node_refs_with (isOfType "word") node data
@@ -184,7 +186,7 @@ findTextsTask editSettings getScoringFunction =
 				loadDataSet >>-
 				findSuitableTexts score selection_settings >>- \texts ->
 				ArrangeWithSideBar 1 RightSide True @>> (
-					ScrollContent @>> editChoice [ChooseFromList id] texts (listToMaybe texts) >&^ \mbSelection ->
+					ScrollContent @>> editChoice [ChooseFromGrid id] texts (listToMaybe texts) >&^ \mbSelection ->
 					styleAttr "box-sizing:border-box;width:100%;" @>> viewSharedInformation [] mbSelection
 				) @! ()
 			) (\e -> Hint "An error occurred:" @>> viewInformation [] e @! ()) >>*

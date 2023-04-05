@@ -13,6 +13,7 @@ from Bible import :: Reference
 :: TextResult =
 	{ start :: !Reference
 	, end   :: !Reference
+	, score :: !Real
 	, text  :: ?String
 	}
 
