@@ -14,10 +14,11 @@ from TextFabric import :: EdgeSet, :: Node, :: Node`
 from TextPicker.Result import :: TextResult
 
 :: TextSelectionSettings =
-	{ text_boundaries      :: !TextBoundaries
-	, count_unique_forms   :: !Bool
-	, number_of_results    :: !Int
-	, must_include_lexemes :: ![String]
+	{ text_boundaries                     :: !TextBoundaries
+	, count_unique_forms                  :: !Bool
+	, number_of_results                   :: !Int
+	, must_include_lexemes                :: ![String]
+	, only_consonantally_distinct_results :: !Bool
 	}
 
 :: TextBoundaries

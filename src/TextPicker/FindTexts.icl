@@ -7,6 +7,9 @@ import Data.Func
 import Data.List => qualified group
 import Data.Tuple
 import Text
+import Text.Unicode
+from Text.Unicode.UChar import instance toInt UChar
+import Text.Unicode.Encodings.UTF8
 
 import iTasks
 import iTasks.Extensions.DateTime
@@ -34,6 +37,7 @@ defaultTextSelectionSettings =
 	, count_unique_forms = False
 	, number_of_results = 25
 	, must_include_lexemes = []
+	, only_consonantally_distinct_results = True
 	}
 
 findSuitableTexts :: !([Node] -> Real) !TextSelectionSettings !DataSet -> Task [TextResult]
@@ -46,7 +50,7 @@ findSuitableTexts score settings data =
 					all_texts
 					(filter (\(_,nodes) -> all (\lex` -> any (\n -> get_node_feature lex n == lex`) nodes) settings.must_include_lexemes) all_texts)
 				scored_texts = sortBy ((>) `on` \r -> r.score) [{res & score=score nodes} \\ (res,nodes) <- included_texts]
-				best_texts = take settings.number_of_results $ avoidOverlap scored_texts
+				best_texts = take settings.number_of_results $ onlyDistinct $ avoidOverlap scored_texts
 			in
 			Hint "Finding suitable texts..." @>>
 			enterInformation [EnterUsing id (mapEditorWrite ValidEditor loader)] ||-
@@ -167,6 +171,31 @@ where
 			(start2.book <> end.book ||
 				(start2.chapter > end.chapter ||
 					(start2.chapter == end.chapter && start2.verse > end.verse)))
+
+	onlyDistinct results
+		| not settings.only_consonantally_distinct_results
+			= results
+			= map hd $ partitionGroupBy ((==) `on` \r -> onlyConsonants (fromMaybe "" r.TextResult.text)) results
+	where
+		onlyConsonants text = toString only_consonants
+		where
+			only_consonants :: UTF8
+			only_consonants = fromUnicode (filter isConsonant unicode)
+
+			unicode = toUnicode (fromMaybe empty (utf8StringCorrespondingTo text))
+
+			isConsonant char = int == toInt ' ' || (0x05d0 <= int && int <= 0x05ea)
+			where
+				int = toInt char
+
+		partitionGroupBy _ [] = []
+		partitionGroupBy eq [x:xs] = [[x:ys] : partitionGroupBy eq zs]
+		where
+			(ys,zs) = partitionBy (eq x) xs
+
+			partitionBy p xs = ([x \\ x <- xs & True <|- matches], [x \\ x <- xs & False <|- matches])
+			where
+				matches = [#p x \\ x <|- xs]
 
 // Only needed for encoding of `[Node] -> Real` functions below; never used:
 JSONEncode{|Node|} _ _ = []
