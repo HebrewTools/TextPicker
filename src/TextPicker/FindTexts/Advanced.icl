@@ -91,7 +91,7 @@ findTexts :: Task ()
 findTexts = findTextsTask
 	[ Hint "Selected vocabulary (for 'From vocabulary' filters):" @>>
 		editSharedMultipleChoiceWithSharedAs [ChooseFromCheckGroup fst] vocabularyLists fst selectedVocabularyLists @! ()
-	, Hint "Filters and their weight:" @>>
+	, Hint "Filters and their weight (only the first matching filter applies):" @>>
 		updateSharedInformation [] weighSettings @! ()
 	, Hint "Feature values (for reference):" @>>
 		viewInformation []
@@ -125,10 +125,13 @@ where
 					@ concatMap snd @ 'Data.Set'.fromList >>- \chosenVocabulary ->
 				return (score weigh_settings chosenVocabulary data)
 
-	score settings vocabulary data words = toReal (sum (map (scoreWord 0 settings) words)) / toReal (length words)
+	score settings vocabulary data words = toReal (sum (map (scoreWord settings) words)) / toReal (length words)
 	where
-		scoreWord acc [] _ = acc
-		scoreWord acc [{filters,weight}:rest] word = scoreWord (if (all matches filters) (acc+weight) acc) rest word
+		scoreWord [] _ = 0
+		scoreWord [{filters,weight}:rest] word
+			| all matches filters
+				= weight
+				= scoreWord rest word
 		where
 			matches (FeatureEquals f val) = get_node_feature f word == val
 			matches (LexemeRegex rgx)
