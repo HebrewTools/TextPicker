@@ -11,9 +11,11 @@ from iTasks.WF.Definition import class iTask
 from Bible import :: Reference
 
 :: TextResult =
-	{ start   :: !Reference
-	, end     :: !Reference
+	{ start :: !Reference
+	, end   :: !Reference
+	, text  :: ?String
 	}
 
-derive class iTask \ gEditor TextResult
+derive class iTask \ gEditor, gText TextResult
 derive gEditor TextResult
+derive gText TextResult

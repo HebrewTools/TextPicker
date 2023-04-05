@@ -24,6 +24,9 @@ FEATURES :==
 	, "vs"
 	, "vt"
 
+	, "g_word_utf8"
+	, "trailer_utf8"
+
 	, "gn"
 	, "nu"
 	, "prs_gn"

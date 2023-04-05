@@ -22,9 +22,11 @@ from TextPicker.Result import :: TextResult
 
 :: TextBoundaries
 	= NumberOfVerses !Int
-	| Paragraphs !ParagraphSettings
+	| Paragraphs !OneNodeSettings
+	| Phrases !OneNodeSettings
+	| Clauses !OneNodeSettings
 
-:: ParagraphSettings =
+:: OneNodeSettings =
 	{ minimum_number_of_words :: !Int
 	}
 
