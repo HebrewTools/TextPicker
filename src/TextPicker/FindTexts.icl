@@ -58,8 +58,8 @@ findSuitableTexts score settings data =
 			in
 			Hint "Finding suitable texts..." @>>
 			enterInformation [EnterUsing id (mapEditorWrite ValidEditor loader)] ||-
-			// NB: ugly hack: waitForTimer is needed so that the UILoader is shown
-			(waitForTimer False 1 >-| return (hyperstrict best_texts))
+			// NB: ugly hack: waitForTimerNSec is needed so that the UILoader is shown
+			(waitForTimerNSec False 1 >-| return (hyperstrict best_texts))
 		_ ->
 			throw "Text-Fabric data did not contain the required features"
 where
@@ -238,11 +238,12 @@ findTextsTask editSettings getScoringFunction =
 					-&&-
 						whileUnchanged mbSelection \mbSelection ->
 							(enterInformation [EnterUsing id (mapEditorWrite ValidEditor loader)] ||-
-							case mbSelection of
+							// NB: ugly hack: waitForTimerNSec is needed so that the UILoader is shown
+							(waitForTimerNSec False 1 >-| case mbSelection of
 								?None ->
 									return (Text "")
 								?Just res ->
-									catchAll (getEnglishText (prettyReference res)) (return o Text)) >>-
+									catchAll (getEnglishText (prettyReference res)) (return o Text))) >>-
 							viewInformation []
 					)
 				) @! ()
