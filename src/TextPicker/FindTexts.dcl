@@ -24,11 +24,18 @@ from TextPicker.Result import :: TextResult
 :: TextBoundaries
 	= NumberOfVerses !Int
 	| Paragraphs !OneNodeSettings
-	| Phrases !OneNodeSettings
-	| Clauses !OneNodeSettings
+	| SingleNodes !NodeTypes !OneNodeSettings
+
+:: NodeTypes =
+	{ phrases :: !Bool
+	, clauses :: !Bool
+	, verses  :: !Bool
+	}
 
 :: OneNodeSettings =
 	{ minimum_number_of_words :: !Int
+	, count_definite_article  :: !Bool
+	, count_conjunction       :: !Bool
 	}
 
 derive class iTask TextSelectionSettings

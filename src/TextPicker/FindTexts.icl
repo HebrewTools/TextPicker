@@ -24,7 +24,7 @@ import TextPicker.Data
 import TextPicker.Result
 
 derive class iTask TextSelectionSettings
-derive class iTask TextBoundaries, OneNodeSettings
+derive class iTask TextBoundaries, NodeTypes, OneNodeSettings
 
 textSelectionSettings :: SimpleSDSLens TextSelectionSettings
 textSelectionSettings =: sdsFocus "textSelectionSettings.json" $ jsonFileStore "TextPicker" False False (?Just defaultTextSelectionSettings)
@@ -33,6 +33,8 @@ defaultTextSelectionSettings :: TextSelectionSettings
 defaultTextSelectionSettings =
 	{ text_boundaries = Paragraphs
 		{ minimum_number_of_words = 50
+		, count_definite_article = True
+		, count_conjunction = True
 		}
 	, count_unique_forms = False
 	, number_of_results = 25
@@ -45,7 +47,7 @@ findSuitableTexts score settings data =
 	case get_node_feature_ids (["otype","book","chapter","verse","pargr","lex"] ++ morphology_features) data of
 		?Just [otype,book,chapter,verse,pargr,lex:morphology_features] ->
 			let
-				all_texts = textCandidates otype book chapter verse pargr [lex:morphology_features] data
+				all_texts = textCandidates otype book chapter verse pargr lex [lex:morphology_features] data
 				included_texts = if (isEmpty settings.must_include_lexemes)
 					all_texts
 					(filter (\(_,nodes) -> all (\lex` -> any (\n -> get_node_feature lex n == lex`) nodes) settings.must_include_lexemes) all_texts)
@@ -61,8 +63,8 @@ findSuitableTexts score settings data =
 where
 	morphology_features = ["gn","nu","prs_gn","prs_nu","prs_ps","ps","st","vs","vt"]
 
-	textCandidates :: !FeatureId !FeatureId !FeatureId !FeatureId !FeatureId ![FeatureId] !DataSet -> [(TextResult,[Node])]
-	textCandidates otype book chapter verse pargr morphology_features data
+	textCandidates :: !FeatureId !FeatureId !FeatureId !FeatureId !FeatureId !FeatureId ![FeatureId] !DataSet -> [(TextResult,[Node])]
+	textCandidates otype book chapter verse pargr lex morphology_features data
 		# candidates = case settings.text_boundaries of
 			NumberOfVerses n ->
 				collectVerses n [v \\ v <|- filter_nodes (isOfType "verse") data]
@@ -71,8 +73,13 @@ where
 					[ (ca, split "." (get_node_feature pargr ca))
 					\\ ca <|- filter_nodes (isOfType "clause_atom") data
 					]
-			Phrases settings -> collectNodes settings "phrase"
-			Clauses settings -> collectNodes settings "clause"
+			SingleNodes types settings -> collectNodes types` settings
+			with
+				types` = catMaybes
+					[ if types.phrases (?Just "phrase") ?None
+					, if types.clauses (?Just "clause") ?None
+					, if types.verses (?Just "verse") ?None
+					]
 		# candidates = map (appSnd (concatMap nodeWords)) candidates
 		| settings.count_unique_forms
 			= map (appSnd (nubBy (eqMorphology morphology_features))) candidates
@@ -114,7 +121,7 @@ where
 
 		collectParagraphs _ [] = []
 		collectParagraphs settings [(node,p):rest]
-			| length theseWords >= settings.minimum_number_of_words
+			| countWords settings theseWords >= settings.minimum_number_of_words
 				= [thisText:collectParagraphs settings rest`]
 				= collectParagraphs settings rest`
 		where
@@ -123,7 +130,7 @@ where
 				sameParagraph [x:_] [y:_] = x == y
 
 			theseNodes = [node:map fst restOfParagraph]
-			theseWords = [w \\ ca <- theseNodes, w <|- get_child_node_refs_with (isOfType "word") ca data]
+			theseWords = [w \\ ca <- theseNodes, w <|- get_child_nodes_with (isOfType "word") ca data]
 
 			firstVerse = getVerse (Hd (get_child_node_refs_with (isOfType "word") node data))
 			lastVerse = getVerse (Last (get_child_node_refs_with (isOfType "word") (last theseNodes) data))
@@ -144,9 +151,9 @@ where
 
 			getVerse node = Hd (get_ancestor_nodes_with (isOfType "verse") node data)
 
-		collectNodes settings type =
+		collectNodes types settings =
 			[ ({start=ref, end=ref, text= ?Just text, score=0.0}, words)
-			\\ node <|- filter_nodes (isOfType type) data
+			\\ node <|- filter_nodes (\_ n _ -> isMember (get_node_feature otype n) types) data
 			, let
 				node_words = get_child_node_refs_with (isOfType "word") node data
 				word_refs = [Hd node_words..Last node_words] // phrases and clauses may contain gaps
@@ -158,7 +165,15 @@ where
 				this_chapter = get_node_feature chapter verse_node
 				this_verse = get_node_feature verse verse_node
 				ref = {book=fromString this_book, chapter=toInt this_chapter, verse=toInt this_verse}
-			| length words >= settings.minimum_number_of_words
+			| countWords settings words >= settings.minimum_number_of_words
+			]
+
+		countWords settings words = length
+			[ w
+			\\ w <- words
+			, let this_lex = get_node_feature lex w
+			| (this_lex <> "H" || settings.count_definite_article) &&
+				(this_lex <> "W" || settings.count_conjunction)
 			]
 
 	avoidOverlap [] = []
@@ -215,7 +230,7 @@ findTextsTask editSettings getScoringFunction =
 				loadDataSet >>-
 				findSuitableTexts score selection_settings >>- \texts ->
 				ArrangeWithSideBar 1 RightSide True @>> (
-					ScrollContent @>> editChoice [ChooseFromGrid id] texts (listToMaybe texts) >&^ \mbSelection ->
+					editChoice [ChooseFromGrid id] texts (listToMaybe texts) >&^ \mbSelection ->
 					styleAttr "box-sizing:border-box;width:100%;" @>> viewSharedInformation [] mbSelection
 				) @! ()
 			) (\e -> Hint "An error occurred:" @>> viewInformation [] e @! ()) >>*
