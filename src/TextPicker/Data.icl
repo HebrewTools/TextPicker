@@ -36,6 +36,8 @@ FEATURES :==
 	, "st"
 	, "vs"
 	, "vt"
+
+	, "pdp"
 	]
 derive class iTask LexemeInformation
 

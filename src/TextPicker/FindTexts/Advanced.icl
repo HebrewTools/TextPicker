@@ -33,7 +33,7 @@ import TextPicker.Vocabulary
 	}
 
 :: Filter feature regex
-	= FeatureEquals !feature !String
+	= FeatureEqualsOneOf !feature ![String]
 	| LexemeRegex !regex
 	| FromVocabulary
 	| NOT !(Filter feature regex)
@@ -45,6 +45,7 @@ import TextPicker.Vocabulary
 	| NominalState
 	| Person | Gender | Number
 	| PersonSuffix | GenderSuffix | NumberSuffix
+	| PhraseDependentPartOfSpeech
 
 instance toString Feature
 where
@@ -58,6 +59,7 @@ where
 	toString PersonSuffix = "prs_ps"
 	toString GenderSuffix = "prs_gn"
 	toString NumberSuffix = "prs_nu"
+	toString PhraseDependentPartOfSpeech = "pdp"
 
 derive class iTask WeighSettingsItem, Filter, Feature
 derive gDefault WeighSettingsItem, Filter, Feature
@@ -78,9 +80,9 @@ where
 			, weight  = weight
 			}
 
-	prepare (FeatureEquals f val) = case get_node_feature_id (toString f) data of
+	prepare (FeatureEqualsOneOf f vals) = case get_node_feature_id (toString f) data of
 		?None -> Error "data did not contain the right features"
-		?Just f -> Ok (FeatureEquals f val)
+		?Just f -> Ok (FeatureEqualsOneOf f vals)
 	prepare (LexemeRegex rgx) = case compileRegex rgx of
 		Error e -> Error ("failed to compile regex: " +++ e)
 		Ok rgx -> Ok (LexemeRegex rgx)
@@ -105,6 +107,7 @@ findTexts = findTextsTask
 					, ("Person (suffix)", ["p1","p2","p3","NA","unknown"])
 					, ("Gender (suffix)", ["m","f","NA","unknown"])
 					, ("Number (suffix)", ["sg","du","pl","NA","unknown"])
+					, ("Part of speech", ["art","verb","subs","nmpr","advb","prep","conj","prps","prde","prin","intj","nega","inrg","adjv"])
 					]
 				]
 			) @! ()
@@ -133,7 +136,7 @@ where
 				= weight
 				= scoreWord rest word
 		where
-			matches (FeatureEquals f val) = get_node_feature f word == val
+			matches (FeatureEqualsOneOf f vals) = isMember (get_node_feature f word) vals
 			matches (LexemeRegex rgx)
 				# (?Just lex) = get_node_feature_id "lex" data
 				= not (isEmpty (match rgx (get_node_feature lex word)))
