@@ -5,6 +5,8 @@ import StdOverloadedList
 
 import Data.Func
 import Data.List => qualified group
+import qualified Data.Set
+import Data.Set.GenJSON
 import Data.Tuple
 import Text
 import Text.HTML
@@ -24,12 +26,16 @@ import TextFabric.Filters
 import TextPicker.Data
 import TextPicker.EnglishAPI
 import TextPicker.Result
+import TextPicker.Vocabulary
 
 derive class iTask TextSelectionSettings
 derive class iTask TextBoundaries, NodeTypes, OneNodeSettings
 
 textSelectionSettings :: SimpleSDSLens TextSelectionSettings
 textSelectionSettings =: sdsFocus "textSelectionSettings.json" $ jsonFileStore "TextPicker" False False (?Just defaultTextSelectionSettings)
+
+requiredVocabularyLists :: SimpleSDSLens [String]
+requiredVocabularyLists =: sdsFocus "requiredVocabularyLists.json" $ jsonFileStore "TextPicker" False False (?Just [])
 
 defaultTextSelectionSettings :: TextSelectionSettings
 defaultTextSelectionSettings =
@@ -44,15 +50,18 @@ defaultTextSelectionSettings =
 	, only_consonantally_distinct_results = True
 	}
 
-findSuitableTexts :: !([Node] -> Real) !TextSelectionSettings !DataSet -> Task [TextResult]
-findSuitableTexts score settings data =
+findSuitableTexts :: !([Node] -> Real) !TextSelectionSettings !('Data.Set'.Set String) !DataSet -> Task [TextResult]
+findSuitableTexts score settings required_vocabulary data =
 	case get_node_feature_ids (["otype","book","chapter","verse","pargr","lex"] ++ morphology_features) data of
 		?Just [otype,book,chapter,verse,pargr,lex:morphology_features] ->
 			let
 				all_texts = textCandidates otype book chapter verse pargr lex [lex:morphology_features] data
-				included_texts = if (isEmpty settings.must_include_lexemes)
+				included_texts` = if (isEmpty settings.must_include_lexemes)
 					all_texts
 					(filter (\(_,nodes) -> all (\lex` -> any (\n -> get_node_feature lex n == lex`) nodes) settings.must_include_lexemes) all_texts)
+				included_texts = if ('Data.Set'.null required_vocabulary)
+					included_texts`
+					(filter (\(_,nodes) -> any (\n -> 'Data.Set'.member (get_node_feature lex n) required_vocabulary) nodes) included_texts`)
 				scored_texts = sortBy ((>) `on` \r -> r.score) [{res & score=score nodes} \\ (res,nodes) <- included_texts]
 				best_texts = take settings.number_of_results $ onlyDistinct $ avoidOverlap scored_texts
 			in
@@ -223,14 +232,27 @@ findTextsTask editSettings getScoringFunction =
 	catchAll (get textSelectionSettings) (\_ -> set defaultTextSelectionSettings textSelectionSettings) >-|
 	// actual tasks:
 	(ArrangeWithSideBar 1 BottomSide True @>> (
-		(Title "Settings" @>> ApplyLayout settings_layout @>> allTasks editSettings)
+		(ScrollContent @>> (
+			(ApplyLayout settings_layout @>> allTasks editSettings)
+		-&&-
+			(ApplyLayout settings_layout @>> allTasks
+				[ Hint "Text selection settings:" @>>
+					updateSharedInformation [] textSelectionSettings @! ()
+				, Hint "Must include at least one lexeme from (deselect all to disable):" @>>
+					editSharedMultipleChoiceWithSharedAs [ChooseFromCheckGroup fst] vocabularyLists fst requiredVocabularyLists @! ()
+				])
+		))
 	-&&-
 		forever (
 			catchAll (
 				getScoringFunction >>- \score ->
 				get textSelectionSettings >>- \selection_settings ->
+				get requiredVocabularyLists >>- \required_vocabulary ->
+				get vocabularyLists
+					@ filter (flip isMember required_vocabulary o fst)
+					@ concatMap snd @ 'Data.Set'.fromList >>- \required_vocabulary ->
 				loadDataSet >>-
-				findSuitableTexts score selection_settings >>- \texts ->
+				findSuitableTexts score selection_settings required_vocabulary >>- \texts ->
 				ArrangeWithSideBar 1 RightSide True @>> (
 					editChoice [ChooseFromGrid id] texts (listToMaybe texts) >&^ \mbSelection ->
 					(
@@ -256,5 +278,4 @@ where
 	settings_layout = sequenceLayouts
 		[ arrangeSplit Horizontal False
 		, layoutSubUIs SelectChildren (setUIAttributes (widthAttr WrapSize))
-		, scrollContent
 		]

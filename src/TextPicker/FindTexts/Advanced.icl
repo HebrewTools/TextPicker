@@ -93,9 +93,9 @@ findTexts :: Task ()
 findTexts = findTextsTask
 	[ Hint "Selected vocabulary (for 'From vocabulary' filters):" @>>
 		editSharedMultipleChoiceWithSharedAs [ChooseFromCheckGroup fst] vocabularyLists fst selectedVocabularyLists @! ()
-	, Hint "Filters and their weight (only the first matching filter applies):" @>>
-		updateSharedInformation [] weighSettings @! ()
-	, Hint "Feature values (for reference):" @>>
+	, (Hint "Filters and their weight (only the first matching filter applies):" @>>
+		updateSharedInformation [] weighSettings) ||-
+	  (Hint "Feature values (for reference):" @>>
 		viewInformation []
 			( TableTag []
 				[ TrTag [] [TdTag [] [Text feature], TdTag [] [Text (join "; " values)]]
@@ -110,9 +110,7 @@ findTexts = findTextsTask
 					, ("Part of speech", ["art","verb","subs","nmpr","advb","prep","conj","prps","prde","prin","intj","nega","inrg","adjv"])
 					]
 				]
-			) @! ()
-	, Hint "Text selection settings:" @>>
-		updateSharedInformation [] textSelectionSettings @! ()
+			) @! ())
 	]
 	getScoringFunction
 where

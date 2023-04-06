@@ -116,8 +116,6 @@ findTexts = findTextsTask
 		editSharedMultipleChoiceWithSharedAs [ChooseFromCheckGroup fst] vocabularyLists fst selectedVocabularyLists @! ()
 	, Hint "Only recognize these verbal forms:" @>>
 		updateSharedInformation [] verbSettings @! ()
-	, Hint "Text selection settings:" @>>
-		updateSharedInformation [] textSelectionSettings @! ()
 	, Hint "Ranking settings:" @>>
 		updateSharedInformation [] rankingSettings @! ()
 	]
