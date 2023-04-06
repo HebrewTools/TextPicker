@@ -20,3 +20,5 @@ from Bible import :: Reference
 derive class iTask \ gEditor, gText TextResult
 derive gEditor TextResult
 derive gText TextResult
+
+prettyReference :: !TextResult -> String

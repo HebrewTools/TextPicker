@@ -3,6 +3,7 @@ module TextPicker
 import iTasks
 
 import TextPicker.Data
+import TextPicker.EnglishAPI
 import qualified TextPicker.FindTexts.Basic as Basic
 import qualified TextPicker.FindTexts.Advanced as Advanced
 import TextPicker.Vocabulary
@@ -15,6 +16,7 @@ main =
 		[ 'Basic'.findTexts <<@ Title "Find texts"
 		, 'Advanced'.findTexts <<@ Title "Find texts (advanced)"
 		, manageVocabulary <<@ Title "Manage vocabulary"
+		, manageEnglishAPI <<@ Title "Manage English text API"
 		]
 	<<@ ArrangeWithTabs False
 

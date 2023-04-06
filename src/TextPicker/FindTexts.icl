@@ -7,6 +7,7 @@ import Data.Func
 import Data.List => qualified group
 import Data.Tuple
 import Text
+import Text.HTML
 import Text.Unicode
 from Text.Unicode.UChar import instance toInt UChar
 import Text.Unicode.Encodings.UTF8
@@ -21,6 +22,7 @@ import TextFabric.BHSA
 import TextFabric.Filters
 
 import TextPicker.Data
+import TextPicker.EnglishAPI
 import TextPicker.Result
 
 derive class iTask TextSelectionSettings
@@ -231,7 +233,18 @@ findTextsTask editSettings getScoringFunction =
 				findSuitableTexts score selection_settings >>- \texts ->
 				ArrangeWithSideBar 1 RightSide True @>> (
 					editChoice [ChooseFromGrid id] texts (listToMaybe texts) >&^ \mbSelection ->
-					styleAttr "box-sizing:border-box;width:100%;" @>> viewSharedInformation [] mbSelection
+					(
+						(styleAttr "box-sizing:border-box;width:100%;" @>> viewSharedInformation [] mbSelection)
+					-&&-
+						whileUnchanged mbSelection \mbSelection ->
+							(enterInformation [EnterUsing id (mapEditorWrite ValidEditor loader)] ||-
+							case mbSelection of
+								?None ->
+									return (Text "")
+								?Just res ->
+									catchAll (getEnglishText (prettyReference res)) (return o Text)) >>-
+							viewInformation []
+					)
 				) @! ()
 			) (\e -> Hint "An error occurred:" @>> viewInformation [] e @! ()) >>*
 			[ OnAction (Action "Search again") $ always $ return ()
