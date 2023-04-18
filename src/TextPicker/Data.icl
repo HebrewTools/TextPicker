@@ -81,7 +81,7 @@ lexemeInformation =: sdsLens
 	(const ())
 	(SDSRead lexemeInformation`)
 	(SDSWriteConst \_ _ -> Ok ?None)
-	(SDSNotifyConst \param _ _ predparam -> param == predparam)
+	(SDSNotifyWithoutRead \param _ _ predparam -> param == predparam)
 	?None
 	dataSet
 
@@ -91,7 +91,7 @@ lexemesInformation =: sdsLens
 	(const ())
 	(SDSRead \param mbData -> 'Control.Monad'.sequence (map (\p -> lexemeInformation` p mbData) param))
 	(SDSWriteConst \_ _ -> Ok ?None)
-	(SDSNotifyConst \param _ _ predparam -> param == predparam)
+	(SDSNotifyWithoutRead \param _ _ predparam -> param == predparam)
 	?None
 	dataSet
 

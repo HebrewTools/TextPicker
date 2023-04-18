@@ -5,7 +5,7 @@
                          ,{"name":"base"
                           ,"version":"1.0.0"}
                          ,{"name":"base-clm"
-                          ,"version":"1.4.2"}
+                          ,"version":"1.5.0"}
                          ,{"name":"base-code-generator"
                           ,"version":"1.0.0"}
                          ,{"name":"base-compiler"
@@ -19,13 +19,13 @@
                          ,{"name":"bible-references"
                           ,"version":"1.0.1"}
                          ,{"name":"clean-platform"
-                          ,"version":"0.3.23"}
+                          ,"version":"0.3.24"}
                          ,{"name":"gast"
                           ,"version":"0.2.3"}
                          ,{"name":"graph-copy"
                           ,"version":"2.0.2"}
                          ,{"name":"itasks"
-                          ,"version":"0.2.12"}
+                          ,"version":"0.7.0"}
                          ,{"name":"lib-compiler"
                           ,"version":"3.0.2"}
                          ,{"name":"regex"

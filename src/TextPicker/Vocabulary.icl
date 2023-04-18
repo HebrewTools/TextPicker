@@ -36,10 +36,9 @@ editVocabulary list =
 		thisVocabularyInformation = sdsSequence
 			"thisVocabularyInformation"
 			id
-			(const id)
-			(\_ _ -> Right snd)
+			(\_ r -> Right (r, id))
 			(SDSWriteConst \_ () -> Error $ exception "share write from thisVocabularyInformation")
-			(SDSWriteConst \_ () -> Error $ exception "share write from thisVocabularyInformation")
+			(SDSSequenceWriteConst \_ _ () -> Error $ exception "share write from thisVocabularyInformation")
 			thisVocabulary
 			lexemesInformation
 	in
