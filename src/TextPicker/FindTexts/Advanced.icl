@@ -3,7 +3,7 @@ implementation module TextPicker.FindTexts.Advanced
 import StdEnv
 
 import Control.Applicative
-import Control.Monad => qualified return, join, forever, sequence
+import Control.Monad => qualified join, forever, sequence
 import Data.Func
 import Data.Functor
 import Data.List => qualified group

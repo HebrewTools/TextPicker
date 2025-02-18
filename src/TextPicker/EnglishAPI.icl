@@ -22,7 +22,9 @@ settings =: sdsFocus "english_api_settings.json" $ jsonFileStore "TextPicker" Fa
 	}
 
 manageEnglishAPI :: Task ()
-manageEnglishAPI = updateSharedInformation [] settings @! ()
+manageEnglishAPI =
+	Hint "To get an API key, follow the instructions on https://docs.api.bible/getting-started/setup-an-account." @>>
+	updateSharedInformation [] settings @! ()
 
 derive JSONEncode ProcessResult
 

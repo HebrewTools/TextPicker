@@ -12,14 +12,12 @@ src:
   - src
 
 dependencies:
-  itasks: ^0.7
-  clean-platform: ^0.3
+  itasks: ^0.16
   bible-references: ^1.0
   regex: ^2.0.1
-  text-fabric: ^0.1
+  text-fabric: ^0.2
 
 clm_options:
-  compiler: cocl-itasks
   fusion: GenericFusion
   bytecode: prelinked
   generate_descriptors: true

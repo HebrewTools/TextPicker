@@ -5,6 +5,7 @@ import StdEnv
 
 import qualified Control.Monad
 import Data.Error
+import Data.Error.GenJSON
 import Data.Func
 from Text import concat5
 
@@ -54,7 +55,7 @@ JSONEncode{|EdgeSet|} _ _ = abort "JSONEncode EdgeSet\n"
 JSONDecode{|EdgeSet|} _ _ = abort "JSONDecode EdgeSet\n"
 
 dataPath :: SimpleSDSLens String
-dataPath =: sdsFocus "data_path.json" $ jsonFileStore "TextPicker" False False (?Just "/home/text-fabric-data/github/etcbc/bhsa/tf/c")
+dataPath =: sdsFocus "data_path.json" $ jsonFileStore "TextPicker" False False (?Just "/home/text-fabric-data/github/ETCBC/bhsa/tf/c")
 
 dataSet :: SimpleSDSLens (?DataSet)
 dataSet =: sdsFocus "dataSet" memoryShare

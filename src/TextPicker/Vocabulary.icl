@@ -3,6 +3,7 @@ implementation module TextPicker.Vocabulary
 import Data.Either
 import Data.Func
 import qualified Data.Map
+import Data.Map.GenJSON
 from Text import concat4
 import Text.HTML
 
