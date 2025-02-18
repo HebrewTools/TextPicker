@@ -201,6 +201,8 @@ where
 	onlyDistinct results
 		| not settings.only_consonantally_distinct_results
 			= results
+		| any isNone [r.TextResult.text \\ r <- results]
+			= results
 			= map hd $ partitionGroupBy ((==) `on` \r -> onlyConsonants (fromMaybe "" r.TextResult.text)) results
 	where
 		onlyConsonants text = toString only_consonants
